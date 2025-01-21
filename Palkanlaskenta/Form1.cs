@@ -1,3 +1,6 @@
+using System.Runtime.CompilerServices;
+using System.Security.Policy;
+
 namespace Palkanlaskenta
 {
     public partial class Form1 : Form
@@ -7,8 +10,25 @@ namespace Palkanlaskenta
             InitializeComponent();
         }
 
-        // Lista työntekijöistä, path
+        // Tallennetaan ja luetaan työntekijät tekstitiedostosta Työntekijät.txt
         private const string DataFilePath = "Tyontekijät.txt";
+
+        // Tallennetaan palkkatiedot Palkkatiedot.txt teksti tiedostoon
+        private const string PayDataFilePath = "Palkkatiedot.txt";
+
+
+        // tehdään metodi millä järjestetään aakkosjärjestykseen
+        private void JarjestaAakkosJarjestykseen()
+        {
+            // hae itemin multiboxista ja tallenna muuttujaan items
+            var items = TyonTekijatComboBox.Items.Cast<string>().ToList();
+
+            items.Sort(); // järjestä aakkosjärjestykseen
+
+            TyonTekijatComboBox.Items.Clear(); // tyhjennä combobox 
+            TyonTekijatComboBox.Items.AddRange(items.ToArray());// ja lisää itemit takaisin
+        }
+
 
         // lataa työntekijä tiedot listasta multiboxiin
         private void LataaTyontekijat()
@@ -20,6 +40,9 @@ namespace Palkanlaskenta
                 {
                     var tyontekijat = File.ReadAllLines(DataFilePath);
                     TyonTekijatComboBox.Items.AddRange(tyontekijat);
+
+                    JarjestaAakkosJarjestykseen(); // järjestä aakkosjärjestykseen
+
                 }
                 else
                 {
@@ -40,14 +63,14 @@ namespace Palkanlaskenta
             // määritetään veroprosentti bruttopalkan mukaan, käyttäen switch
             return bruttopalkka switch
             {
-                > 7000 => 40.0, // if bruttopalkka > 7000, return 40% jne
+                > 7000 => 40.0, // if bruttopalkka => 7000, return 40% jne
                 > 5000 => 30.0,
                 > 3000 => 25.0,
                 > 2000 => 19.0,
                 > 1500 => 15.0,
                 _ => 12.0
             };
-           
+
         }
 
         private void label2_Click(object sender, EventArgs e)
@@ -55,11 +78,13 @@ namespace Palkanlaskenta
 
         }
 
-        // varmistetaan tiedoston luku Form1_Load
+        // varmistetaan tiedoston "työntekijät" luku Form1_Load
         private void Form1_Load(object sender, EventArgs e)
         {
             LataaTyontekijat();
+
         }
+
 
         private void textBox3_TextChanged(object sender, EventArgs e)
         {
@@ -78,7 +103,9 @@ namespace Palkanlaskenta
                 }
 
                 // tallennetaan muuttujiin käyttäjän valinnat ja syötetyt arvot
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
                 string tyontekija = TyonTekijatComboBox.SelectedItem.ToString();
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
                 int tyotunnit = int.Parse(txtTyotunnit.Text);
                 double tuntipalkka = double.Parse(txtTuntipalkka.Text);
 
@@ -95,7 +122,7 @@ namespace Palkanlaskenta
 
                 // Tehdään laskennat jos syötetyt arvot ovat ok
                 double bruttopalkka = (normaalitunnit * tuntipalkka) + (ylityotunnit * tuntipalkka * 1.5);
-                double veroprosentti = LaskeVeroprosentti(bruttopalkka);
+                double veroprosentti = LaskeVeroprosentti(bruttopalkka); // kutsutaan LaskeVeroProsentti metodi
                 double verot = bruttopalkka * (veroprosentti / 100);
                 double nettopalkka = bruttopalkka - verot;
 
@@ -114,12 +141,47 @@ namespace Palkanlaskenta
 
         }
 
+
+        private void btnTallenna_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // tallentaa tulostetut palkkatiedot tiedostoon "Palkatiedot" ja lisää päivämäärän
+                // tallennetaan txtResult tiedot muuttujaan
+                string palkkaTiedot = txtResult.Text;
+
+                // tarkastetaan että syötä on generoitu txtResult kenttään ennen tallennusta
+                if (txtResult.Text.Length == 0)
+                {
+                    MessageBox.Show("Palkkateitoja ei ole genereoitu.");
+                    return;
+                }
+                else
+                {
+                    // Lisätään generoitu teksti Palkkatiedot.txt tiedostoon sekä päivämäärä
+                    File.AppendAllText(PayDataFilePath, palkkaTiedot + Environment.NewLine + DateTime.Now.Date.ToString("MM/dd/yyyy hh:mm tt") + Environment.NewLine + "-------------" + Environment.NewLine);
+                    MessageBox.Show("Palkkatiedot tallennettu onnistuneesti Palkkatiedot.txt teksti tiedostoon");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Virhe: {ex.Message}", "Virhe", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+
+
+
+
         private void btnUusiTyontekija_Click(object sender, EventArgs e)
         {
             try
             {
                 // tallenetaan uusi työntekijä työntekijät listaan
                 string uusiTyontekija = txtUusiTyontekija.Text.Trim();
+
                 // tarkistetaan että uuden työntekijän nimi on syötetty
                 if (uusiTyontekija.Length == 0)
                 {
@@ -129,12 +191,15 @@ namespace Palkanlaskenta
                 else
                 {
                     // lisätään uusi työntekijä comboboxiin ja listaan
-                    // ja tyhjennetään tekstikenttä
-                    TyonTekijatComboBox.Items.Add(uusiTyontekija);
+                    _ = TyonTekijatComboBox.Items.Add(uusiTyontekija);
                     File.AppendAllText(DataFilePath, uusiTyontekija + Environment.NewLine);
+
                     MessageBox.Show($"Työntekijä {uusiTyontekija} lisätty.");
-                    txtUusiTyontekija.Text = "";
+
+
+                    txtUusiTyontekija.Text = "";// tyhjennetään tekstikenttä
                 }
+                JarjestaAakkosJarjestykseen(); // järjestetään aakkosjärjestykseen
             }
             catch (Exception ex)
             {
@@ -142,12 +207,14 @@ namespace Palkanlaskenta
             }
         }
 
+
         private void btnPoistatyontekija_Click(object sender, EventArgs e)
         {
             try
             {
                 // tallennetaan poistettavan työntekijän nimi
                 string poistaTyontekija = txtUusiTyontekija.Text.Trim();
+
                 // tarkistetaan että uuden työntekijän nimi on syötetty
                 if (poistaTyontekija.Length == 0)
                 {
@@ -172,6 +239,8 @@ namespace Palkanlaskenta
                 TyonTekijatComboBox.Items.Clear();
                 TyonTekijatComboBox.Items.AddRange(tyontekijat.ToArray());
 
+                JarjestaAakkosJarjestykseen(); // järjestetään aakkosjärjestykseen
+
                 MessageBox.Show($"Työntekijä {poistaTyontekija} poistettu.");
                 txtUusiTyontekija.Text = "";
 
@@ -191,8 +260,11 @@ namespace Palkanlaskenta
         {
 
         }
+
+
     }
 }
 // lisää työntekiojät listaan ja poista niin että säilyy 
 // näytä työntekijöliden määrä
 // aseta tekijöille tuntipalkat riippuen ammatti nimikkeestä
+// lisää nappi mikä näyttää tiedoston mihin tallennettu palkkatiedot
